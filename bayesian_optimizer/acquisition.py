@@ -35,8 +35,9 @@ def brute_force(X, acquisition_func, bounds, scale, points=100,
     mesh = np.meshgrid(*lines)
     # Organize input into objective function as
     mesh = np.array([ar.flatten() for ar in mesh]).T
-    # Send scaled mesh to model
-    aspirants = acquisition_func(scale.transform(mesh), *acquisition_func_args)
+    # User passes in actual bounds, need to work in scaled quantities internally
+    mesh = scale.transform(mesh)
+    aspirants = acquisition_func(mesh, *acquisition_func_args)
 
     if not hierarchy:
         if 'T' in kwargs:
@@ -44,20 +45,21 @@ def brute_force(X, acquisition_func, bounds, scale, points=100,
         else:
             final_candidates, w = parameterized_selection(X, mesh, aspirants, samples)
     else:
-        final_candidates = hierarchical_selection(mesh, aspirants, samples)
+        final_candidates, w = hierarchical_selection(mesh, aspirants, samples), None  # TODO: remove after testing
 
-    return final_candidates
+    return final_candidates, w
 
 
 def parameterized_selection(X, candidates, quality, n, T=0.1):
+    # TODO: Change is so that only distance from mesh to candidates is measured
     # T: Scaling factor for weights, set smaller for more exploitation, larger for more exploration
 
     # Collect distance of candidates to all points
-    choices = np.vstack([X, candidates])
-    distances = np.sum(cdist(choices, choices, metric='euclidean'), axis=1).reshape(choices.shape[0], -1)
+    # choices = np.vstack([X, candidates])
+    distances = np.sum(cdist(candidates, X, metric='euclidean'), axis=-1).reshape(candidates.shape[0], -1)
 
     # Calculate normalized distance metric
-    var_dist = distances[X.shape[0]:] / np.std(distances)
+    var_dist = distances / np.std(distances)
     var_dist = var_dist / np.max(var_dist)
 
     # Use weights to choose candidates to pass
@@ -68,7 +70,7 @@ def parameterized_selection(X, candidates, quality, n, T=0.1):
 
     selection_indices = np.random.choice(candidates.shape[0], n, p=weight.flatten(), replace=False)
 
-    return candidates[selection_indices, :], np.array(var_dist * quality).flatten()
+    return candidates[selection_indices, :], weight
 
 
 def hierarchical_selection(candiates, quality, n):
@@ -93,4 +95,4 @@ class MyBounds(object):
 def return_ucb(x, k, model):
     mu, sigma = model.predict(x, full_cov=False)
 
-    return mu - k * sigma
+    return mu + k * sigma

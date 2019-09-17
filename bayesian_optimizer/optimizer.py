@@ -60,17 +60,18 @@ class BayesianOptimizer:
             if batches > 1:
                 acquisition_func_args[0] = exploitation[i]
 
-            candidates = brute_force(self.X, acquisition_func, bounds, self._transformer_x,
+            candidates, w = brute_force(self.X, acquisition_func, bounds, self._transformer_x,
                                      acquisition_func_args=acquisition_func_args,
                                      samples=samples, **kwargs)
             # real_coordinates = self._transformer_x.inverse_transform(candidates)
 
             final_candidates.append(candidates)
 
-        return final_candidates
+        return final_candidates, w
 
     @property
     def X(self):
+        # TODO: Change X to return real values and pass the scaled value of _X inside the class everywherege
         return self._X
 
     @X.setter
@@ -109,9 +110,9 @@ class BayesianOptimizer:
         vals = np.meshgrid(*lines)
         vals = np.array([ar.flatten() for ar in vals]).T
         x_T = self._transformer_x.transform(vals)
-        y_T_m, _ = self.model.predict(x_T, full_cov=False)
+        y_T_m, y_T_s = self.model.predict(x_T, full_cov=False)
 
-        return vals, self._transformer_y.inverse_transform(y_T_m)
+        return vals, self._transformer_y.inverse_transform(y_T_m), self._transformer_y.inverse_transform(y_T_s)
 
     # TODO: This isn't working with the new code forms yet
     def _return_ei(self, x, exploitation=3.0):
