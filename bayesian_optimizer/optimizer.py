@@ -63,9 +63,9 @@ class BayesianOptimizer:
             candidates, w = brute_force(self.X, acquisition_func, bounds, self._transformer_x,
                                      acquisition_func_args=acquisition_func_args,
                                      samples=samples, **kwargs)
-            # real_coordinates = self._transformer_x.inverse_transform(candidates)
+            real_coordinates = self._transformer_x.inverse_transform(candidates)
 
-            final_candidates.append(candidates)
+            final_candidates.append(real_coordinates)
 
         return final_candidates, w
 
